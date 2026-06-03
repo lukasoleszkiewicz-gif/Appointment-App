@@ -1,4 +1,5 @@
-import { LayoutDashboard, CalendarDays, Users, CheckSquare, Trophy } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Users, CheckSquare } from 'lucide-react';
+import USOfficialsLogo from './USOfficialsLogo';
 
 const navItems = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -14,19 +15,10 @@ export default function Sidebar({ activeView, setActiveView, stats }) {
       display: 'flex', flexDirection: 'column', flexShrink: 0
     }}>
       {/* Logo */}
-      <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid #1e2235' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
-          }}>
-            <Trophy size={18} color="white" />
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#f1f5f9' }}>RefAssign</div>
-            <div style={{ fontSize: 11, color: '#64748b' }}>AI-Powered</div>
-          </div>
+      <div style={{ padding: '16px 12px', borderBottom: '1px solid #1e2235' }}>
+        <USOfficialsLogo size="normal" />
+        <div style={{ fontSize: 10, color: '#475569', marginTop: 6, paddingLeft: 2 }}>
+          AI Referee Assignment
         </div>
       </div>
 
