@@ -1,0 +1,195 @@
+import { useState } from 'react';
+import { Search, Filter, ChevronDown } from 'lucide-react';
+
+const STATUS_COLORS = {
+  approved: { bg: '#064e3b', text: '#34d399', label: 'Approved' },
+  'ai-proposed': { bg: '#1e3a5f', text: '#60a5fa', label: 'AI Proposed' },
+  manual: { bg: '#3b2f00', text: '#fbbf24', label: 'Manual' },
+  unassigned: { bg: '#1f1f1f', text: '#6b7280', label: 'Unassigned' },
+};
+
+const BADGE_COLORS = { FIFA: '#f59e0b', National: '#3b82f6', Regional: '#8b5cf6', Youth: '#34d399' };
+
+function RefSelect({ value, referees, onChange, placeholder, busy }) {
+  return (
+    <select
+      value={value || ''}
+      onChange={e => onChange(e.target.value ? parseInt(e.target.value) : null)}
+      style={{
+        background: '#0f1117', border: '1px solid #1e2235', borderRadius: 6,
+        color: value ? '#e2e8f0' : '#475569', fontSize: 11, padding: '3px 6px',
+        cursor: 'pointer', width: '100%', maxWidth: 160
+      }}
+    >
+      <option value="">{placeholder}</option>
+      {referees.map(r => (
+        <option key={r.id} value={r.id}>{r.name}</option>
+      ))}
+    </select>
+  );
+}
+
+export default function MatchTable({ matches, assignments, referees, filters, setFilters, onUpdate, pendingValidation }) {
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const PER_PAGE = 20;
+
+  const dates = ['all', '5/22/2026', '5/23/2026', '5/24/2026', '5/25/2026'];
+  const leagues = ['all', 'Tournament NMDT', 'Tournament IFA'];
+  const statuses = ['all', 'approved', 'ai-proposed', 'unassigned'];
+
+  const filtered = matches.filter(m => {
+    if (filters.date !== 'all' && m.date !== filters.date) return false;
+    if (filters.league !== 'all' && m.league !== filters.league) return false;
+    if (filters.status !== 'all') {
+      const status = assignments[m.id]?.status || 'unassigned';
+      if (status !== filters.status) return false;
+    }
+    if (search) {
+      const s = search.toLowerCase();
+      if (!m.home.toLowerCase().includes(s) && !m.away.toLowerCase().includes(s) &&
+        !m.venue.toLowerCase().includes(s) && !m.teamType.toLowerCase().includes(s)) return false;
+    }
+    return true;
+  });
+
+  const pages = Math.ceil(filtered.length / PER_PAGE);
+  const visible = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+
+  const FilterPill = ({ label, value, options, onChange }) => (
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+      <select
+        value={value}
+        onChange={e => { onChange(e.target.value); setPage(0); }}
+        style={{
+          background: value !== 'all' ? 'rgba(59,130,246,0.15)' : '#1a1d2e',
+          border: `1px solid ${value !== 'all' ? '#3b82f6' : '#1e2235'}`,
+          color: value !== 'all' ? '#60a5fa' : '#94a3b8',
+          borderRadius: 8, padding: '6px 28px 6px 10px', fontSize: 12, cursor: 'pointer',
+          appearance: 'none',
+        }}
+      >
+        {options.map(o => (
+          <option key={o} value={o}>{o === 'all' ? `All ${label}` : o}</option>
+        ))}
+      </select>
+      <ChevronDown size={12} style={{ position: 'absolute', right: 8, pointerEvents: 'none', color: '#64748b' }} />
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>Match List</h2>
+          <p style={{ color: '#64748b', fontSize: 12, margin: '2px 0 0' }}>{filtered.length} matches</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative' }}>
+          <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
+          <input
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(0); }}
+            placeholder="Search team, venue..."
+            style={{
+              background: '#1a1d2e', border: '1px solid #1e2235', borderRadius: 8,
+              color: '#e2e8f0', fontSize: 12, padding: '6px 10px 6px 30px', width: 200
+            }}
+          />
+        </div>
+        <FilterPill label="Dates" value={filters.date} options={dates} onChange={v => setFilters(f => ({ ...f, date: v }))} />
+        <FilterPill label="Leagues" value={filters.league} options={leagues} onChange={v => setFilters(f => ({ ...f, league: v }))} />
+        <FilterPill label="Status" value={filters.status} options={statuses} onChange={v => setFilters(f => ({ ...f, status: v }))} />
+      </div>
+
+      {/* Table */}
+      <div style={{ background: '#13151f', border: '1px solid #1e2235', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #1e2235' }}>
+                {['Date', 'Time', 'Category', 'Home', 'Away', 'Venue', 'Referee', 'AR1', 'AR2', 'Status'].map(h => (
+                  <th key={h} style={{ padding: '10px 12px', textAlign: 'left', color: '#475569', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((m, i) => {
+                const a = assignments[m.id] || {};
+                const status = a.status || 'unassigned';
+                const sc = STATUS_COLORS[status] || STATUS_COLORS.unassigned;
+                const isPending = pendingValidation.includes(m.id);
+                const refName = id => referees.find(r => r.id === id)?.name?.split(' ').slice(-1)[0] || '';
+
+                return (
+                  <tr key={m.id} style={{
+                    borderBottom: '1px solid #111318',
+                    background: isPending ? 'rgba(59,130,246,0.04)' : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                  }}>
+                    <td style={{ padding: '8px 12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{m.date.slice(0, -5)}</td>
+                    <td style={{ padding: '8px 12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{m.time}</td>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 11, color: '#a78bfa', fontWeight: 500 }}>{m.teamType}</span>
+                      <div style={{ fontSize: 10, color: '#475569' }}>{m.league.replace('Tournament ', '')}</div>
+                    </td>
+                    <td style={{ padding: '8px 12px', color: '#e2e8f0', fontWeight: 500, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.home}</td>
+                    <td style={{ padding: '8px 12px', color: '#94a3b8', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.away}</td>
+                    <td style={{ padding: '8px 12px', color: '#64748b', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.venue}</td>
+                    <td style={{ padding: '8px 12px', minWidth: 170 }}>
+                      <RefSelect
+                        value={a.referee}
+                        referees={referees}
+                        onChange={v => onUpdate(m.id, 'referee', v)}
+                        placeholder="— assign —"
+                      />
+                    </td>
+                    <td style={{ padding: '8px 12px', minWidth: 140 }}>
+                      <RefSelect
+                        value={a.ar1}
+                        referees={referees}
+                        onChange={v => onUpdate(m.id, 'ar1', v)}
+                        placeholder="AR1"
+                      />
+                    </td>
+                    <td style={{ padding: '8px 12px', minWidth: 140 }}>
+                      <RefSelect
+                        value={a.ar2}
+                        referees={referees}
+                        onChange={v => onUpdate(m.id, 'ar2', v)}
+                        placeholder="AR2"
+                      />
+                    </td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <span style={{
+                        background: sc.bg, color: sc.text, borderRadius: 6,
+                        padding: '2px 8px', fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap'
+                      }}>{sc.label}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {pages > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderTop: '1px solid #1e2235' }}>
+            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+              style={{ background: '#1a1d2e', border: '1px solid #1e2235', color: '#94a3b8', borderRadius: 6, padding: '4px 12px', cursor: page === 0 ? 'not-allowed' : 'pointer', fontSize: 12 }}>
+              ‹ Prev
+            </button>
+            <span style={{ color: '#64748b', fontSize: 12 }}>{page + 1} / {pages}</span>
+            <button onClick={() => setPage(p => Math.min(pages - 1, p + 1))} disabled={page === pages - 1}
+              style={{ background: '#1a1d2e', border: '1px solid #1e2235', color: '#94a3b8', borderRadius: 6, padding: '4px 12px', cursor: page === pages - 1 ? 'not-allowed' : 'pointer', fontSize: 12 }}>
+              Next ›
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
