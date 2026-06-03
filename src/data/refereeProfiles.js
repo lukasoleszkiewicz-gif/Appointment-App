@@ -942,7 +942,7 @@ export const refereeProfiles = {
   },
   42: {
     name: "Lukasz Oleszkiewicz",
-    photo: null,
+    photo: "/lukasz.jpg",
     dob: "1990-04-15",
     nationality: "Polish",
     hometown: "Warsaw, Poland",

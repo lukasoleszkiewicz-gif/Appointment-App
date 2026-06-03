@@ -36,19 +36,21 @@ function computeAttributes(ref, profile) {
   };
 }
 
-function Avatar({ name, badge }) {
+function Avatar({ name, badge, photo }) {
   const initials = name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]).join('');
   const color = BADGE_COLORS[badge] || '#64748b';
   return (
     <div style={{
       width: 90, height: 90, borderRadius: '50%',
-      background: `linear-gradient(135deg, ${color}44, ${color}22)`,
+      background: photo ? 'transparent' : `linear-gradient(135deg, ${color}44, ${color}22)`,
       border: `3px solid ${color}`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: 28, fontWeight: 800, color, flexShrink: 0,
-      letterSpacing: '-1px',
+      letterSpacing: '-1px', overflow: 'hidden',
     }}>
-      {initials}
+      {photo
+        ? <img src={photo} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : initials}
     </div>
   );
 }
@@ -102,7 +104,7 @@ export default function RefereeProfileModal({ referee, matches, assignments, onC
           background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))',
           borderBottom: '1px solid #1e2235', flexShrink: 0,
         }}>
-          <Avatar name={referee.name} badge={referee.badge} />
+          <Avatar name={referee.name} badge={referee.badge} photo={profile.photo} />
 
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
