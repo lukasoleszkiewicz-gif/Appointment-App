@@ -140,6 +140,7 @@ function applyMultiSort(rows, sortLevels) {
 export default function MatchTable({ matches, assignments, referees, filters, setFilters, onUpdate, pendingValidation, onImportMatches, onRejectAll }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
+  const [perPage, setPerPage] = useState(20);
   const [importError, setImportError] = useState('');
   const [sortLevels, setSortLevels] = useState([{ key: 'date', dir: 'asc' }, { key: 'time', dir: 'asc' }]);
   const [showSort, setShowSort] = useState(false);
@@ -169,8 +170,9 @@ export default function MatchTable({ matches, assignments, referees, filters, se
   });
 
   const sorted = applyMultiSort(filtered, sortLevels);
-  const pages = Math.ceil(sorted.length / PER_PAGE);
-  const visible = sorted.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+  const effectivePerPage = perPage === 0 ? sorted.length || 1 : perPage;
+  const pages = Math.ceil(sorted.length / effectivePerPage);
+  const visible = sorted.slice(page * effectivePerPage, (page + 1) * effectivePerPage);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -219,9 +221,50 @@ export default function MatchTable({ matches, assignments, referees, filters, se
     </div>
   );
 
+  // Day calendar — compact tabs above the table
+  const DAY_LABELS = {
+    '2026-03-31': { short: '31 Mar', label: 'Day 1' },
+    '2026-04-01': { short: '1 Apr',  label: 'Day 2' },
+    '2026-04-02': { short: '2 Apr',  label: 'Day 3' },
+    '2026-04-03': { short: '3 Apr',  label: 'Day 4' },
+    '2026-04-04': { short: '4 Apr',  label: 'Day 5' },
+    '2026-04-05': { short: '5 Apr',  label: 'Day 6' },
+  };
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+      {/* Day calendar strip */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => { setFilters(f => ({ ...f, date: 'all' })); setPage(0); }}
+          style={{
+            padding: '8px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 700,
+            border: filters.date === 'all' ? '2px solid #3b82f6' : '1px solid #1e2235',
+            background: filters.date === 'all' ? 'rgba(59,130,246,0.2)' : '#13151f',
+            color: filters.date === 'all' ? '#60a5fa' : '#64748b',
+          }}
+        >All Days</button>
+        {uniqueDates.filter(d => d !== 'all').map(d => {
+          const count = matches.filter(m => m.date === d).length;
+          const assigned = matches.filter(m => m.date === d && assignments[m.id]?.referee).length;
+          const sel = filters.date === d;
+          const info = DAY_LABELS[d] || { short: d, label: d };
+          return (
+            <button key={d} onClick={() => { setFilters(f => ({ ...f, date: d })); setPage(0); }} style={{
+              padding: '7px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 12,
+              border: sel ? '2px solid #3b82f6' : '1px solid #1e2235',
+              background: sel ? 'rgba(59,130,246,0.18)' : '#13151f',
+              color: sel ? '#60a5fa' : '#64748b', fontWeight: sel ? 700 : 500,
+              textAlign: 'left',
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 11 }}>{info.label} · {info.short}</div>
+              <div style={{ fontSize: 10, marginTop: 1, opacity: 0.75 }}>{assigned}/{count} assigned</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>Match List</h2>
           <p style={{ color: '#64748b', fontSize: 12, margin: '2px 0 0' }}>{filtered.length} matches</p>
@@ -292,7 +335,6 @@ export default function MatchTable({ matches, assignments, referees, filters, se
             }}
           />
         </div>
-        <FilterPill label="Days" value={filters.date} options={uniqueDates} onChange={v => setFilters(f => ({ ...f, date: v }))} />
         <FilterPill label="Phase" value={filters.phase || 'all'} options={uniquePhases} onChange={v => setFilters(f => ({ ...f, phase: v }))} />
         <FilterPill label="Category" value={filters.league} options={uniqueCategories} onChange={v => setFilters(f => ({ ...f, league: v }))} />
         <FilterPill label="Status" value={filters.status} options={statuses} onChange={v => setFilters(f => ({ ...f, status: v }))} />
@@ -476,20 +518,48 @@ export default function MatchTable({ matches, assignments, referees, filters, se
           </table>
         </div>
 
-        {/* Pagination */}
-        {pages > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderTop: '1px solid #1e2235' }}>
-            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-              style={{ background: '#1a1d2e', border: '1px solid #1e2235', color: '#94a3b8', borderRadius: 6, padding: '4px 12px', cursor: page === 0 ? 'not-allowed' : 'pointer', fontSize: 12 }}>
-              ‹ Prev
-            </button>
-            <span style={{ color: '#64748b', fontSize: 12 }}>{page + 1} / {pages}</span>
-            <button onClick={() => setPage(p => Math.min(pages - 1, p + 1))} disabled={page === pages - 1}
-              style={{ background: '#1a1d2e', border: '1px solid #1e2235', color: '#94a3b8', borderRadius: 6, padding: '4px 12px', cursor: page === pages - 1 ? 'not-allowed' : 'pointer', fontSize: 12 }}>
-              Next ›
-            </button>
+        {/* Pagination + rows-per-page */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '1px solid #1e2235', gap: 12 }}>
+          {/* Rows per page */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: '#475569' }}>Rows per page:</span>
+            {[20, 50, 100, 0].map(n => (
+              <button key={n} onClick={() => { setPerPage(n); setPage(0); }} style={{
+                padding: '3px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600,
+                border: perPage === n ? '1px solid #8b5cf6' : '1px solid #1e2235',
+                background: perPage === n ? 'rgba(139,92,246,0.15)' : '#1a1d2e',
+                color: perPage === n ? '#a78bfa' : '#64748b',
+              }}>{n === 0 ? 'All' : n}</button>
+            ))}
           </div>
-        )}
+
+          {/* Page nav */}
+          {pages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={() => setPage(0)} disabled={page === 0}
+                style={{ background: '#1a1d2e', border: '1px solid #1e2235', color: '#94a3b8', borderRadius: 6, padding: '3px 8px', cursor: page === 0 ? 'not-allowed' : 'pointer', fontSize: 12 }}>
+                «
+              </button>
+              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+                style={{ background: '#1a1d2e', border: '1px solid #1e2235', color: '#94a3b8', borderRadius: 6, padding: '3px 10px', cursor: page === 0 ? 'not-allowed' : 'pointer', fontSize: 12 }}>
+                ‹ Prev
+              </button>
+              <span style={{ color: '#64748b', fontSize: 12, minWidth: 70, textAlign: 'center' }}>
+                {page + 1} / {pages}
+              </span>
+              <button onClick={() => setPage(p => Math.min(pages - 1, p + 1))} disabled={page === pages - 1}
+                style={{ background: '#1a1d2e', border: '1px solid #1e2235', color: '#94a3b8', borderRadius: 6, padding: '3px 10px', cursor: page === pages - 1 ? 'not-allowed' : 'pointer', fontSize: 12 }}>
+                Next ›
+              </button>
+              <button onClick={() => setPage(pages - 1)} disabled={page === pages - 1}
+                style={{ background: '#1a1d2e', border: '1px solid #1e2235', color: '#94a3b8', borderRadius: 6, padding: '3px 8px', cursor: page === pages - 1 ? 'not-allowed' : 'pointer', fontSize: 12 }}>
+                »
+              </button>
+            </div>
+          )}
+
+          <span style={{ fontSize: 11, color: '#475569' }}>{sorted.length} matches total</span>
+        </div>
       </div>
     </div>
   );
