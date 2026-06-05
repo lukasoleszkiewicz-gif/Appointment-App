@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { CalendarDays, Users, CheckSquare, AlertCircle, TrendingUp, Sparkles, ChevronRight } from 'lucide-react';
 
 const COUNTRY_FLAGS = {
@@ -27,13 +28,119 @@ function StatCard({ icon: Icon, label, value, sub, color }) {
   );
 }
 
+const DAY_LABELS = {
+  '2026-03-31': 'Day 1 · Tue 31 Mar',
+  '2026-04-01': 'Day 2 · Wed 1 Apr',
+  '2026-04-02': 'Day 3 · Thu 2 Apr',
+  '2026-04-03': 'Day 4 · Fri 3 Apr',
+  '2026-04-04': 'Day 5 · Sat 4 Apr',
+  '2026-04-05': 'Day 6 · Sun 5 Apr',
+};
+
+function DayPickerSection({ dates, matches, assignments, onRunAI, aiRunning }) {
+  const [selectedDays, setSelectedDays] = useState(new Set());
+
+  const toggle = (date) => {
+    setSelectedDays(prev => {
+      const next = new Set(prev);
+      next.has(date) ? next.delete(date) : next.add(date);
+      return next;
+    });
+  };
+
+  const selectAll = () => setSelectedDays(new Set(dates));
+  const clearAll = () => setSelectedDays(new Set());
+
+  const handleRun = () => {
+    onRunAI(selectedDays.size > 0 ? [...selectedDays] : null);
+  };
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))',
+      border: '1px solid rgba(99,102,241,0.25)', borderRadius: 16, padding: 28, marginBottom: 24,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <div style={{ fontSize: 26 }}>🤖</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#f1f5f9' }}>AI Assignment Engine</div>
+          </div>
+          <div style={{ fontSize: 12, color: '#64748b', maxWidth: 480 }}>
+            Select one or more tournament days to assign. The engine will apply shift/pitch grouping,
+            role rotation, nationality mixing, and workload balancing.
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+          {/* Day selector */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>
+            {dates.map(d => {
+              const count = matches.filter(m => m.date === d).length;
+              const assigned = matches.filter(m => m.date === d && assignments[m.id]?.referee).length;
+              const sel = selectedDays.has(d);
+              return (
+                <button
+                  key={d}
+                  onClick={() => toggle(d)}
+                  style={{
+                    padding: '8px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 12,
+                    fontWeight: 600, transition: 'all 0.15s',
+                    border: sel ? '2px solid #3b82f6' : '1px solid #1e2235',
+                    background: sel ? 'rgba(59,130,246,0.2)' : '#13151f',
+                    color: sel ? '#60a5fa' : '#64748b',
+                  }}
+                >
+                  <div style={{ fontWeight: 700 }}>{DAY_LABELS[d] || d}</div>
+                  <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>
+                    {assigned}/{count} assigned
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Controls */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={selectAll} style={{
+              fontSize: 11, color: '#60a5fa', background: 'none', border: 'none',
+              cursor: 'pointer', padding: '2px 6px', textDecoration: 'underline'
+            }}>Select all</button>
+            <button onClick={clearAll} style={{
+              fontSize: 11, color: '#64748b', background: 'none', border: 'none',
+              cursor: 'pointer', padding: '2px 6px', textDecoration: 'underline'
+            }}>Clear</button>
+
+            <button
+              onClick={handleRun}
+              disabled={aiRunning || selectedDays.size === 0}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '10px 22px', borderRadius: 10, border: 'none', cursor: selectedDays.size === 0 || aiRunning ? 'not-allowed' : 'pointer',
+                background: selectedDays.size === 0 || aiRunning
+                  ? '#1e2235'
+                  : 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                color: selectedDays.size === 0 || aiRunning ? '#475569' : 'white',
+                fontWeight: 700, fontSize: 13, transition: 'all 0.2s',
+              }}
+            >
+              <Sparkles size={14} />
+              {aiRunning ? 'Running…' : `Assign ${selectedDays.size > 0 ? selectedDays.size : '?'} day${selectedDays.size !== 1 ? 's' : ''}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ByDateRow({ date, matches, assignments }) {
   const count = matches.filter(m => m.date === date).length;
   const assigned = matches.filter(m => m.date === date && assignments[m.id]?.referee).length;
   const approved = matches.filter(m => m.date === date && assignments[m.id]?.status === 'approved').length;
   const pct = count ? Math.round(assigned / count * 100) : 0;
 
-  const dayNames = { '6/19/2026': 'Day 1 – Fri', '6/20/2026': 'Day 2 – Sat', '6/21/2026': 'Day 3 – Sun', '6/22/2026': 'Day 4 – Mon' };
+  const dayNames = DAY_LABELS;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #1a1d2e' }}>
@@ -56,7 +163,10 @@ function ByDateRow({ date, matches, assignments }) {
 
 export default function Dashboard({ matches, assignments, referees, stats, onRunAI, aiRunning, setActiveView }) {
   const pct = stats.total ? Math.round(stats.assigned / stats.total * 100) : 0;
-  const dates = ['6/19/2026', '6/20/2026', '6/21/2026', '6/22/2026'];
+
+  // Derive all unique tournament days from the actual matches
+  const allDates = [...new Set(matches.map(m => m.date))].sort();
+  const dates = allDates;
 
   const refWorkload = referees.map(r => {
     const count = Object.values(assignments).filter(a =>
@@ -136,36 +246,14 @@ export default function Dashboard({ matches, assignments, referees, stats, onRun
         </div>
       </div>
 
-      {/* AI CTA */}
-      {stats.assigned === 0 && (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(59,130,246,0.1), rgba(139,92,246,0.1))',
-          border: '1px solid rgba(99,102,241,0.3)', borderRadius: 16, padding: 32,
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🤖</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9', marginBottom: 8 }}>
-            Ready to assign {stats.total} matches
-          </div>
-          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20, maxWidth: 500, margin: '0 auto 20px' }}>
-            The AI agent will analyze all matches, referee availability, badge levels, and workload to
-            propose optimal assignments. You review and approve.
-          </div>
-          <button
-            onClick={onRunAI}
-            disabled={aiRunning}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '12px 28px', borderRadius: 10, border: 'none', cursor: 'pointer',
-              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-              color: 'white', fontWeight: 700, fontSize: 15,
-            }}
-          >
-            <Sparkles size={16} />
-            Run AI Assignment Engine
-          </button>
-        </div>
-      )}
+      {/* AI Assignment — Day Picker */}
+      <DayPickerSection
+        dates={dates}
+        matches={matches}
+        assignments={assignments}
+        onRunAI={onRunAI}
+        aiRunning={aiRunning}
+      />
 
       {/* League breakdown */}
       {stats.assigned > 0 && (

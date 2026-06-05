@@ -60,19 +60,23 @@ export default function App() {
     setActiveView('dashboard');
   }, []);
 
-  const runAI = useCallback(async () => {
+  const runAI = useCallback(async (selectedDays = null) => {
     setAiRunning(true);
     setAiLog([]);
 
+    const dayFilter = selectedDays && selectedDays.length > 0 ? new Set(selectedDays) : null;
+    const targetMatches = dayFilter ? matches.filter(m => dayFilter.has(m.date)) : matches;
+    const dayLabel = dayFilter ? `${dayFilter.size} selected day${dayFilter.size !== 1 ? 's' : ''}` : 'all tournament days';
+
     const steps = [
-      `Analyzing ${matches.length} matches across 4 tournament days...`,
+      `Analyzing ${targetMatches.length} matches across ${dayLabel}...`,
       `Loading ${initialReferees.length} Estoril referee profiles and badge levels...`,
-      'Computing availability windows and time conflicts...',
-      'Applying experience-to-match-level scoring...',
-      'Prioritizing finals and semi-finals...',
-      'Balancing workload distribution...',
-      'Checking for double-booking conflicts...',
-      'Generating assignment proposals...',
+      'Grouping matches by venue and splitting into shifts...',
+      'Forming referee teams with nationality mixing...',
+      'Applying role rotation within shifts...',
+      'Checking nation conflicts between referees and teams...',
+      'Enforcing max 5 matches per referee per day...',
+      'Balancing workload distribution across all referees...',
     ];
 
     for (let i = 0; i < steps.length; i++) {
@@ -80,7 +84,7 @@ export default function App() {
       setAiLog(prev => [...prev, { text: steps[i], done: false }]);
     }
 
-    const newAssignments = generateAIAssignments(matches, initialReferees, assignments);
+    const newAssignments = generateAIAssignments(targetMatches, initialReferees, assignments);
 
     await new Promise(r => setTimeout(r, 300));
     setAiLog(prev => prev.map(l => ({ ...l, done: true })));
@@ -120,6 +124,15 @@ export default function App() {
       pendingValidation.forEach(id => {
         if (next[id]) next[id] = { ...next[id], status: 'approved' };
       });
+      return next;
+    });
+    setPendingValidation([]);
+  }, [pendingValidation]);
+
+  const rejectAll = useCallback(() => {
+    setAssignments(prev => {
+      const next = { ...prev };
+      pendingValidation.forEach(id => { delete next[id]; });
       return next;
     });
     setPendingValidation([]);
@@ -216,6 +229,7 @@ export default function App() {
                   onUpdate={updateAssignment}
                   pendingValidation={pendingValidation}
                   onImportMatches={handleImportMatches}
+                  onRejectAll={rejectAll}
                 />
               )}
               {activeView === 'referees' && (

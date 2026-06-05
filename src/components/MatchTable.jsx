@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Search, ChevronDown, Upload, Download } from 'lucide-react';
+import { Search, ChevronDown, Upload, Download, XCircle } from 'lucide-react';
 
 const STATUS_COLORS = {
   approved: { bg: '#064e3b', text: '#34d399', label: 'Approved' },
@@ -73,27 +73,39 @@ function parseCSV(text) {
 
 function exportCSV(matches, referees, assignments) {
   const refName = id => referees.find(r => r.id === id)?.name || '';
-  const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const header = ['Match ID', 'Phase', 'Category', 'Day', 'Hour', 'Team A', 'Team B', 'Field', 'Referee 1', 'Referee 2', 'Referee 3', 'Referee 4'];
+  // Use tab-separated, quoted fields — same column order as the imported Excel
+  const SEP = '\t';
+  const esc = v => String(v ?? '');
+  const header = ['Match ID', 'Phase', 'Category', 'Day', 'Hour', 'Team A', 'Team B', 'Field',
+                  'Referee 1', 'Referee 2', 'Referee 3', 'Referee 4'];
   const rows = matches.map(m => {
     const a = assignments[m.id] || {};
     return [
-      m.id, m.phase || 'groups', m.category || m.teamType,
-      m.date, m.time, m.home, m.away, m.venue,
-      refName(a.referee), refName(a.ar1), refName(a.ar2), '',
-    ].map(escape).join(',');
+      m.id,
+      m.phase || 'groups',
+      m.category || m.teamType,
+      m.date,
+      m.time,
+      m.home,
+      m.away,
+      m.venue,
+      refName(a.referee),
+      refName(a.ar1),
+      refName(a.ar2),
+      '',
+    ].map(esc).join(SEP);
   });
-  const csv = [header.map(escape).join(','), ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const tsv = [header.join(SEP), ...rows].join('\n');
+  const blob = new Blob([tsv], { type: 'text/tab-separated-values;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'estoril_matches.csv';
-  a.click();
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'estoril_matches.xlsx';
+  link.click();
   URL.revokeObjectURL(url);
 }
 
-export default function MatchTable({ matches, assignments, referees, filters, setFilters, onUpdate, pendingValidation, onImportMatches }) {
+export default function MatchTable({ matches, assignments, referees, filters, setFilters, onUpdate, pendingValidation, onImportMatches, onRejectAll }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [importError, setImportError] = useState('');
@@ -182,6 +194,20 @@ export default function MatchTable({ matches, assignments, referees, filters, se
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
+          {onRejectAll && pendingValidation.length > 0 && (
+            <button
+              onClick={onRejectAll}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '7px 14px', borderRadius: 8, border: '1px solid #ef4444',
+                background: 'rgba(239,68,68,0.1)', color: '#f87171',
+                cursor: 'pointer', fontSize: 12, fontWeight: 600,
+              }}
+            >
+              <XCircle size={13} />
+              Reject All ({pendingValidation.length})
+            </button>
+          )}
           <button
             onClick={() => exportCSV(matches, referees, assignments)}
             style={{
@@ -192,7 +218,7 @@ export default function MatchTable({ matches, assignments, referees, filters, se
             }}
           >
             <Download size={13} />
-            Export CSV
+            Export
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}

@@ -215,8 +215,8 @@ export default function RefereePanel({ referees, matches, assignments }) {
                     { label: 'Country', col: 'country' },
                     { label: 'Age', col: 'age' },
                     { label: 'Level', col: 'badge' },
-                    { label: 'Matches Officiated', col: 'matchesOfficiated' },
-                    { label: 'Matches as Referee', col: 'matchesAsReferee' },
+                    { label: 'Assigned (Total)', col: 'total' },
+                    { label: 'Assigned (Main Ref)', col: 'asMain' },
                     { label: 'Status', col: 'status' },
                     { label: 'Actions', col: null },
                   ].map(({ label, col }) => (
@@ -260,8 +260,12 @@ export default function RefereePanel({ referees, matches, assignments }) {
                         fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5,
                       }}>{getBadgeLevel(r.badge)}</span>
                     </td>
-                    <td style={{ padding: '8px 14px', color: '#94a3b8' }}>{r.matchesOfficiated || '—'}</td>
-                    <td style={{ padding: '8px 14px', color: '#94a3b8' }}>{r.matchesAsReferee || '—'}</td>
+                    <td style={{ padding: '8px 14px', color: '#94a3b8' }}>
+                      {Object.values(assignments).filter(a => a?.referee === r.id || a?.ar1 === r.id || a?.ar2 === r.id).length || '—'}
+                    </td>
+                    <td style={{ padding: '8px 14px', color: '#94a3b8' }}>
+                      {Object.values(assignments).filter(a => a?.referee === r.id).length || '—'}
+                    </td>
                     <td style={{ padding: '8px 14px' }}>
                       <span style={{
                         color: STATUS_COLORS[r.status] || '#94a3b8',
