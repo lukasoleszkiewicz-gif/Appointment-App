@@ -1,14 +1,21 @@
-import { LayoutDashboard, CalendarDays, Users, CheckSquare } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Users, CheckSquare, ClipboardList, Trophy } from 'lucide-react';
 import USOfficialsLogo from './USOfficialsLogo';
 
-const navItems = [
-  { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { id: 'matches', icon: CalendarDays, label: 'Matches' },
-  { id: 'referees', icon: Users, label: 'Referees' },
-  { id: 'validation', icon: CheckSquare, label: 'Validation' },
+const ALL_NAV_ITEMS = [
+  { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin'] },
+  { id: 'matches', icon: CalendarDays, label: 'Matches', roles: ['admin'] },
+  { id: 'referees', icon: Users, label: 'Referees', roles: ['admin', 'observer'] },
+  { id: 'validation', icon: CheckSquare, label: 'Validation', roles: ['admin'] },
+  { id: 'evaluations', icon: ClipboardList, label: 'Evaluations', roles: ['admin', 'observer'] },
+  { id: 'merittable', icon: Trophy, label: 'Merit Table', roles: ['admin', 'observer'] },
 ];
 
-export default function Sidebar({ activeView, setActiveView, stats }) {
+const ROLE_COLORS = { admin: '#3b82f6', observer: '#8b5cf6', referee: '#34d399' };
+
+export default function Sidebar({ activeView, setActiveView, stats, currentUser }) {
+  const role = currentUser?.role || 'admin';
+  const navItems = ALL_NAV_ITEMS.filter(item => item.roles.includes(role));
+
   return (
     <div style={{
       width: 220, background: '#13151f', borderRight: '1px solid #1e2235',
@@ -53,22 +60,54 @@ export default function Sidebar({ activeView, setActiveView, stats }) {
         })}
       </nav>
 
-      {/* Stats footer */}
+      {/* User info footer */}
       <div style={{ padding: '12px 16px', borderTop: '1px solid #1e2235' }}>
-        <div style={{ fontSize: 11, color: '#475569', marginBottom: 8 }}>ASSIGNMENT PROGRESS</div>
-        <div style={{
-          height: 4, background: '#1e2235', borderRadius: 4, overflow: 'hidden', marginBottom: 6
-        }}>
+        {role === 'admin' && (
+          <>
+            <div style={{ fontSize: 11, color: '#475569', marginBottom: 8 }}>ASSIGNMENT PROGRESS</div>
+            <div style={{
+              height: 4, background: '#1e2235', borderRadius: 4, overflow: 'hidden', marginBottom: 6
+            }}>
+              <div style={{
+                height: '100%', borderRadius: 4,
+                background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)',
+                width: `${stats.total ? (stats.approved / stats.total * 100) : 0}%`,
+                transition: 'width 0.5s ease'
+              }} />
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+              {stats.approved} / {stats.total} confirmed
+            </div>
+          </>
+        )}
+        {currentUser && (
           <div style={{
-            height: '100%', borderRadius: 4,
-            background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)',
-            width: `${stats.total ? (stats.approved / stats.total * 100) : 0}%`,
-            transition: 'width 0.5s ease'
-          }} />
-        </div>
-        <div style={{ fontSize: 11, color: '#64748b' }}>
-          {stats.approved} / {stats.total} confirmed
-        </div>
+            background: '#0f1117', borderRadius: 8, padding: '8px 10px',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%',
+              background: `${ROLE_COLORS[role] || '#64748b'}33`,
+              border: `2px solid ${ROLE_COLORS[role] || '#64748b'}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, fontWeight: 700, color: ROLE_COLORS[role] || '#64748b',
+              flexShrink: 0,
+            }}>
+              {currentUser.name[0]}
+            </div>
+            <div style={{ overflow: 'hidden' }}>
+              <div style={{ fontSize: 11, color: '#e2e8f0', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {currentUser.name}
+              </div>
+              <div style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
+                color: ROLE_COLORS[role] || '#64748b', textTransform: 'uppercase',
+              }}>
+                {role}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

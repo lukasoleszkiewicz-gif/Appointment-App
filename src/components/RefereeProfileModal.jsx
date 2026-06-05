@@ -1,39 +1,20 @@
-import { X, Calendar, Briefcase, Flag, Star, TrendingUp, Award, Activity, Globe, Dumbbell } from 'lucide-react';
-import StarRating, { SkillBar } from './StarRating';
+import { X, Calendar, Briefcase, Flag, Activity, Globe, Dumbbell } from 'lucide-react';
 import { refereeProfiles } from '../data/refereeProfiles';
 
 const COUNTRY_FLAGS = {
   'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Germany': '🇩🇪', 'France': '🇫🇷', 'Gibraltar': '🇬🇮',
   'Ireland': '🇮🇪', 'Austria': '🇦🇹', 'Italy': '🇮🇹', 'Spain': '🇪🇸',
   'Slovenia': '🇸🇮', 'Czechia': '🇨🇿', 'Poland': '🇵🇱', 'Sweden': '🇸🇪',
+  'Wales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿', 'USA': '🇺🇸', 'Canada': '🇨🇦', 'Belgium': '🇧🇪',
+  'Denmark': '🇩🇰', 'Switzerland': '🇨🇭', 'China': '🇨🇳', 'Romania': '🇷🇴',
+  'Moldova': '🇲🇩', 'Hungary': '🇭🇺', 'Faroe Islands': '🇫🇴', 'Egypt': '🇪🇬',
 };
 
 const BADGE_COLORS = { FIFA: '#f59e0b', National: '#3b82f6', Regional: '#8b5cf6', Youth: '#34d399' };
 
-const SKILL_ATTRS = [
-  { key: 'positioning', label: 'Positioning' },
-  { key: 'decisionSpeed', label: 'Decision Speed' },
-  { key: 'authority', label: 'Match Authority' },
-  { key: 'fitness', label: 'Fitness' },
-  { key: 'lawsKnowledge', label: 'Laws Knowledge' },
-  { key: 'communication', label: 'Communication' },
-];
-
-function computeAttributes(ref, profile) {
-  const base = profile.currentSkill;
-  const age = ref.age;
-  const isVet = age > 35;
-  const isYoung = age < 22;
-  const badgeBonus = { FIFA: 18, National: 10, Regional: 4, Youth: 0 }[ref.badge] || 0;
-
-  return {
-    positioning: Math.min(99, base + badgeBonus * 0.4 + (isVet ? 8 : 0) + Math.random() * 5 | 0),
-    decisionSpeed: Math.min(99, base + (isYoung ? 5 : isVet ? -3 : 3) + badgeBonus * 0.3 + Math.random() * 5 | 0),
-    authority: Math.min(99, base + badgeBonus * 0.6 + (isVet ? 12 : isYoung ? -10 : 2) + Math.random() * 4 | 0),
-    fitness: Math.min(99, base + (isYoung ? 12 : isVet ? -8 : 5) + Math.random() * 5 | 0),
-    lawsKnowledge: Math.min(99, base + badgeBonus * 0.5 + (isVet ? 10 : 0) + Math.random() * 4 | 0),
-    communication: Math.min(99, base + (profile.languages?.length > 2 ? 8 : 0) + badgeBonus * 0.3 + Math.random() * 5 | 0),
-  };
+function getBadgeLevel(badge) {
+  if (badge === 'Youth') return 'Local Referee';
+  return 'Regional Referee';
 }
 
 function Avatar({ name, badge, photo }) {
@@ -68,7 +49,6 @@ export default function RefereeProfileModal({ referee, matches, assignments, onC
   if (!profile) return null;
 
   const { age, startYear } = AgeSince(profile.dob, profile.yearsAsReferee);
-  const attrs = computeAttributes(referee, profile);
 
   const assignedMatches = matches.filter(m =>
     assignments[m.id]?.referee === referee.id ||
@@ -77,6 +57,7 @@ export default function RefereeProfileModal({ referee, matches, assignments, onC
   );
 
   const BADGE_LABEL = { FIFA: 'FIFA International', National: 'National Level', Regional: 'Regional Level', Youth: 'Youth / Trainee' };
+  const level = getBadgeLevel(referee.badge);
 
   return (
     <div
@@ -113,43 +94,11 @@ export default function RefereeProfileModal({ referee, matches, assignments, onC
               <span style={{
                 background: `${BADGE_COLORS[referee.badge]}22`, color: BADGE_COLORS[referee.badge],
                 fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 6,
-              }}>{referee.badge}</span>
+              }}>{level}</span>
             </div>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
-              {profile.hometown} · {BADGE_LABEL[referee.badge]}
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+              {profile.hometown} · {referee.country} · {BADGE_LABEL[referee.badge]}
             </div>
-            {/* Stars row */}
-            <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 10, color: '#64748b', marginBottom: 3 }}>CURRENT LEVEL</div>
-                <StarRating value={profile.currentSkill} size={18} showNumber color="#f5c518" />
-              </div>
-              <div style={{ width: 1, height: 32, background: '#1e2235' }} />
-              <div>
-                <div style={{ fontSize: 10, color: '#7c3aed', marginBottom: 3 }}>POTENTIAL</div>
-                <StarRating value={profile.potential} size={18} showNumber color="#a78bfa" />
-              </div>
-            </div>
-          </div>
-
-          {/* Big skill number - FIFA style */}
-          <div style={{ textAlign: 'center', marginRight: 8 }}>
-            <div style={{
-              fontSize: 52, fontWeight: 900, lineHeight: 1,
-              color: profile.currentSkill >= 80 ? '#f5c518' : profile.currentSkill >= 65 ? '#60a5fa' : '#94a3b8',
-            }}>
-              {profile.currentSkill}
-            </div>
-            <div style={{ fontSize: 9, color: '#475569', fontWeight: 600, letterSpacing: 1 }}>OVR</div>
-          </div>
-
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              fontSize: 36, fontWeight: 800, lineHeight: 1, color: '#a78bfa',
-            }}>
-              {profile.potential}
-            </div>
-            <div style={{ fontSize: 9, color: '#7c3aed', fontWeight: 600, letterSpacing: 1 }}>POT</div>
           </div>
 
           <button onClick={onClose} style={{
@@ -235,29 +184,7 @@ export default function RefereeProfileModal({ referee, matches, assignments, onC
           {/* Right column */}
           <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-            {/* Attribute bars — FIFA style */}
-            <section>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', letterSpacing: 1, marginBottom: 12 }}>SKILL ATTRIBUTES</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 20px' }}>
-                {SKILL_ATTRS.map(({ key, label }) => {
-                  const cur = attrs[key];
-                  const pot = Math.min(99, Math.round(cur * (profile.potential / profile.currentSkill)));
-                  return <SkillBar key={key} label={label} current={cur} potential={pot} />;
-                })}
-              </div>
-              <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <div style={{ width: 10, height: 4, background: 'linear-gradient(90deg,#f5c518,#ff9800)', borderRadius: 2 }} />
-                  <span style={{ fontSize: 10, color: '#64748b' }}>Current</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <div style={{ width: 10, height: 4, background: 'rgba(139,92,246,0.5)', borderRadius: 2 }} />
-                  <span style={{ fontSize: 10, color: '#64748b' }}>Potential</span>
-                </div>
-              </div>
-            </section>
-
-            {/* Season stats */}
+            {/* Career statistics */}
             <section>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', letterSpacing: 1, marginBottom: 12 }}>CAREER STATISTICS</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
@@ -283,7 +210,6 @@ export default function RefereeProfileModal({ referee, matches, assignments, onC
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 {profile.careerHistory.map((c, i) => (
                   <div key={i} style={{ display: 'flex', gap: 12, paddingBottom: 12, position: 'relative' }}>
-                    {/* Timeline line */}
                     {i < profile.careerHistory.length - 1 && (
                       <div style={{ position: 'absolute', left: 19, top: 20, width: 1, bottom: 0, background: '#1e2235' }} />
                     )}

@@ -1,7 +1,11 @@
 import { useState } from 'react';
-import StarRating from './StarRating';
 import RefereeProfileModal from './RefereeProfileModal';
 import { refereeProfiles } from '../data/refereeProfiles';
+
+function getBadgeLevel(badge) {
+  if (badge === 'Youth') return 'Local Referee';
+  return 'Regional Referee';
+}
 
 const COUNTRY_FLAGS = {
   'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Germany': '🇩🇪', 'France': '🇫🇷', 'Gibraltar': '🇬🇮',
@@ -24,8 +28,7 @@ function RefereeCard({ referee, assignments, onClick }) {
     a?.status === 'approved' && (a?.referee === referee.id || a?.ar1 === referee.id || a?.ar2 === referee.id)
   ).length;
 
-  const ovr = profile?.currentSkill || 50;
-  const pot = profile?.potential || 60;
+  const level = getBadgeLevel(referee.badge);
 
   return (
     <div
@@ -38,17 +41,8 @@ function RefereeCard({ referee, assignments, onClick }) {
       onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#15182a'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e2235'; e.currentTarget.style.background = '#13151f'; }}
     >
-      {/* FIFA-style OVR badge top-right */}
-      <div style={{ position: 'absolute', top: 12, right: 12, textAlign: 'center' }}>
-        <div style={{
-          fontSize: 22, fontWeight: 900, lineHeight: 1,
-          color: ovr >= 80 ? '#f5c518' : ovr >= 65 ? '#60a5fa' : '#94a3b8',
-        }}>{ovr}</div>
-        <div style={{ fontSize: 8, color: '#475569', fontWeight: 700, letterSpacing: 0.5 }}>OVR</div>
-      </div>
-
       {/* Top row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, paddingRight: 44 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
         <div style={{
           width: 38, height: 38, borderRadius: 10,
           background: `${BADGE_COLORS[referee.badge] || '#64748b'}22`,
@@ -61,42 +55,17 @@ function RefereeCard({ referee, assignments, onClick }) {
             fontSize: 12, fontWeight: 700, color: '#f1f5f9',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{referee.name}</div>
-          <div style={{ fontSize: 10, color: '#64748b' }}>{referee.country} · Age {referee.age}</div>
+          <div style={{ fontSize: 10, color: '#64748b' }}>{referee.country}</div>
         </div>
       </div>
 
-      {/* Badge pill */}
+      {/* Level badge */}
       <div style={{ marginBottom: 10 }}>
         <span style={{
           background: `${BADGE_COLORS[referee.badge]}22`, color: BADGE_COLORS[referee.badge],
           fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 5, letterSpacing: 0.5,
-        }}>{referee.badge}</span>
+        }}>{level}</span>
       </div>
-
-      {/* Stars - Current */}
-      <div style={{ marginBottom: 6 }}>
-        <div style={{ fontSize: 9, color: '#64748b', marginBottom: 3, fontWeight: 600 }}>CURRENT</div>
-        <StarRating value={ovr} size={13} color="#f5c518" />
-      </div>
-
-      {/* Stars - Potential */}
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 9, color: '#7c3aed', marginBottom: 3, fontWeight: 600 }}>POTENTIAL</div>
-        <StarRating value={pot} size={13} color="#a78bfa" dimColor="#2a1f4e" />
-      </div>
-
-      {/* Growth arrow */}
-      {pot > ovr + 5 && (
-        <div style={{ marginBottom: 10 }}>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
-            background: 'rgba(124,58,237,0.15)', borderRadius: 6, padding: '3px 8px',
-          }}>
-            <span style={{ fontSize: 10 }}>↑</span>
-            <span style={{ fontSize: 10, color: '#a78bfa', fontWeight: 700 }}>+{pot - ovr} growth potential</span>
-          </div>
-        </div>
-      )}
 
       {/* Assignment counts */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, borderTop: '1px solid #1a1d2e', paddingTop: 10 }}>
@@ -119,7 +88,7 @@ function RefereeCard({ referee, assignments, onClick }) {
 export default function RefereePanel({ referees, matches, assignments }) {
   const [selected, setSelected] = useState(null);
   const [filterBadge, setFilterBadge] = useState('all');
-  const [sortBy, setSortBy] = useState('ovr');
+  const [sortBy, setSortBy] = useState('name');
   const [viewMode, setViewMode] = useState('cards');
   const [tableSort, setTableSort] = useState({ col: 'name', dir: 'asc' });
   const [search, setSearch] = useState('');
@@ -134,19 +103,17 @@ export default function RefereePanel({ referees, matches, assignments }) {
       return r.name.toLowerCase().includes(s) || r.country.toLowerCase().includes(s);
     })
     .map(r => {
-      const p = refereeProfiles[r.id];
       const total = Object.values(assignments).filter(a =>
         a?.referee === r.id || a?.ar1 === r.id || a?.ar2 === r.id
       ).length;
-      return { ...r, ovr: p?.currentSkill || 50, pot: p?.potential || 60, total };
+      return { ...r, total };
     });
 
   const filtered = [...enriched].sort((a, b) => {
     if (viewMode === 'cards') {
-      if (sortBy === 'ovr') return b.ovr - a.ovr;
-      if (sortBy === 'pot') return b.pot - a.pot;
       if (sortBy === 'workload') return b.total - a.total;
       if (sortBy === 'age') return a.age - b.age;
+      if (sortBy === 'name') return a.name.localeCompare(b.name);
       return 0;
     } else {
       const { col, dir } = tableSort;
@@ -217,8 +184,7 @@ export default function RefereePanel({ referees, matches, assignments }) {
               background: '#1a1d2e', border: '1px solid #1e2235', color: '#94a3b8',
               borderRadius: 6, padding: '5px 10px', fontSize: 11, cursor: 'pointer',
             }}>
-              <option value="ovr">Sort: OVR ↓</option>
-              <option value="pot">Sort: Potential ↓</option>
+              <option value="name">Sort: Name ↑</option>
               <option value="workload">Sort: Workload ↓</option>
               <option value="age">Sort: Age ↑</option>
             </select>
@@ -248,7 +214,7 @@ export default function RefereePanel({ referees, matches, assignments }) {
                     { label: 'Name', col: 'name' },
                     { label: 'Country', col: 'country' },
                     { label: 'Age', col: 'age' },
-                    { label: 'Badge', col: 'badge' },
+                    { label: 'Level', col: 'badge' },
                     { label: 'Matches Officiated', col: 'matchesOfficiated' },
                     { label: 'Matches as Referee', col: 'matchesAsReferee' },
                     { label: 'Status', col: 'status' },
@@ -292,7 +258,7 @@ export default function RefereePanel({ referees, matches, assignments }) {
                       <span style={{
                         background: `${BADGE_COLORS[r.badge]}22`, color: BADGE_COLORS[r.badge],
                         fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5,
-                      }}>{r.badge}</span>
+                      }}>{getBadgeLevel(r.badge)}</span>
                     </td>
                     <td style={{ padding: '8px 14px', color: '#94a3b8' }}>{r.matchesOfficiated || '—'}</td>
                     <td style={{ padding: '8px 14px', color: '#94a3b8' }}>{r.matchesAsReferee || '—'}</td>
