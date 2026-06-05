@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { Search, ChevronDown, Upload, Download, XCircle } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const STATUS_COLORS = {
   approved: { bg: '#064e3b', text: '#34d399', label: 'Approved' },
@@ -71,13 +72,13 @@ function parseCSV(text) {
   return parsed.length > 0 ? parsed : null;
 }
 
-function exportCSV(matches, referees, assignments) {
+function exportExcel(matches, referees, assignments) {
   const refName = id => referees.find(r => r.id === id)?.name || '';
-  // Use tab-separated, quoted fields — same column order as the imported Excel
-  const SEP = '\t';
-  const esc = v => String(v ?? '');
-  const header = ['Match ID', 'Phase', 'Category', 'Day', 'Hour', 'Team A', 'Team B', 'Field',
+
+  const header = ['Match ID', 'Phase', 'Category', 'Day', 'Hour',
+                  'Team A', 'Team B', 'Field',
                   'Referee 1', 'Referee 2', 'Referee 3', 'Referee 4'];
+
   const rows = matches.map(m => {
     const a = assignments[m.id] || {};
     return [
@@ -93,16 +94,21 @@ function exportCSV(matches, referees, assignments) {
       refName(a.ar1),
       refName(a.ar2),
       '',
-    ].map(esc).join(SEP);
+    ];
   });
-  const tsv = [header.join(SEP), ...rows].join('\n');
-  const blob = new Blob([tsv], { type: 'text/tab-separated-values;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'estoril_matches.xlsx';
-  link.click();
-  URL.revokeObjectURL(url);
+
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 10 }, { wch: 10 }, { wch: 22 }, { wch: 12 }, { wch: 8 },
+    { wch: 30 }, { wch: 30 }, { wch: 28 },
+    { wch: 24 }, { wch: 24 }, { wch: 24 }, { wch: 12 },
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Matches');
+  XLSX.writeFile(wb, 'estoril_matches.xlsx');
 }
 
 export default function MatchTable({ matches, assignments, referees, filters, setFilters, onUpdate, pendingValidation, onImportMatches, onRejectAll }) {
@@ -209,7 +215,7 @@ export default function MatchTable({ matches, assignments, referees, filters, se
             </button>
           )}
           <button
-            onClick={() => exportCSV(matches, referees, assignments)}
+            onClick={() => exportExcel(matches, referees, assignments)}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '7px 14px', borderRadius: 8, border: '1px solid #3b82f6',
