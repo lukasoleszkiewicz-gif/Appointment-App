@@ -50,18 +50,22 @@ function parseCSV(text) {
   for (let i = 1; i < lines.length; i++) {
     const row = lines[i].split(',');
     if (row.every(c => !c.trim())) continue;
+    const rawId = getCol(row, 'match id', 'id');
+    const cat = getCol(row, 'category', 'teamtype', 'team type', 'type');
     parsed.push({
-      id: i,
-      date: getCol(row, 'date'),
-      time: getCol(row, 'time'),
-      game: i + 200000,
+      id: rawId ? parseInt(rawId) : i + 200000,
+      phase: getCol(row, 'phase') || 'groups',
+      category: cat,
+      date: getCol(row, 'day', 'date'),
+      time: getCol(row, 'hour', 'time'),
+      game: rawId ? parseInt(rawId) : i + 200000,
       league: getCol(row, 'league') || 'Ibercup Estoril',
       gameExt: i,
-      teamType: getCol(row, 'category', 'teamtype', 'team type', 'type'),
-      length: 70,
-      venue: getCol(row, 'venue'),
-      home: getCol(row, 'home team', 'home'),
-      away: getCol(row, 'away team', 'away'),
+      teamType: cat,
+      length: 60,
+      venue: getCol(row, 'field', 'venue'),
+      home: getCol(row, 'team a', 'home team', 'home'),
+      away: getCol(row, 'team b', 'away team', 'away'),
     });
   }
   return parsed.length > 0 ? parsed : null;
@@ -70,13 +74,13 @@ function parseCSV(text) {
 function exportCSV(matches, referees, assignments) {
   const refName = id => referees.find(r => r.id === id)?.name || '';
   const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const header = ['Date', 'Time', 'Category', 'Home Team', 'Away Team', 'Venue', 'Referee', 'AR1', 'AR2', 'Status'];
+  const header = ['Match ID', 'Phase', 'Category', 'Day', 'Hour', 'Team A', 'Team B', 'Field', 'Referee 1', 'Referee 2', 'Referee 3', 'Referee 4'];
   const rows = matches.map(m => {
     const a = assignments[m.id] || {};
     return [
-      m.date, m.time, m.teamType, m.home, m.away, m.venue,
-      refName(a.referee), refName(a.ar1), refName(a.ar2),
-      a.status || 'unassigned',
+      m.id, m.phase || 'groups', m.category || m.teamType,
+      m.date, m.time, m.home, m.away, m.venue,
+      refName(a.referee), refName(a.ar1), refName(a.ar2), '',
     ].map(escape).join(',');
   });
   const csv = [header.map(escape).join(','), ...rows].join('\n');
@@ -98,12 +102,14 @@ export default function MatchTable({ matches, assignments, referees, filters, se
 
   // Derive unique dates from matches
   const uniqueDates = ['all', ...Array.from(new Set(matches.map(m => m.date))).sort()];
-  const uniqueLeagues = ['all', ...Array.from(new Set(matches.map(m => m.league)))];
+  const uniqueCategories = ['all', ...Array.from(new Set(matches.map(m => m.category || m.teamType))).sort()];
+  const uniquePhases = ['all', ...Array.from(new Set(matches.map(m => m.phase || 'groups'))).sort()];
   const statuses = ['all', 'approved', 'ai-proposed', 'unassigned'];
 
   const filtered = matches.filter(m => {
     if (filters.date !== 'all' && m.date !== filters.date) return false;
-    if (filters.league !== 'all' && m.league !== filters.league) return false;
+    if (filters.league !== 'all' && (m.category || m.teamType) !== filters.league) return false;
+    if (filters.phase && filters.phase !== 'all' && (m.phase || 'groups') !== filters.phase) return false;
     if (filters.status !== 'all') {
       const status = assignments[m.id]?.status || 'unassigned';
       if (status !== filters.status) return false;
@@ -217,8 +223,9 @@ export default function MatchTable({ matches, assignments, referees, filters, se
             }}
           />
         </div>
-        <FilterPill label="Dates" value={filters.date} options={uniqueDates} onChange={v => setFilters(f => ({ ...f, date: v }))} />
-        <FilterPill label="Leagues" value={filters.league} options={uniqueLeagues} onChange={v => setFilters(f => ({ ...f, league: v }))} />
+        <FilterPill label="Days" value={filters.date} options={uniqueDates} onChange={v => setFilters(f => ({ ...f, date: v }))} />
+        <FilterPill label="Phase" value={filters.phase || 'all'} options={uniquePhases} onChange={v => setFilters(f => ({ ...f, phase: v }))} />
+        <FilterPill label="Category" value={filters.league} options={uniqueCategories} onChange={v => setFilters(f => ({ ...f, league: v }))} />
         <FilterPill label="Status" value={filters.status} options={statuses} onChange={v => setFilters(f => ({ ...f, status: v }))} />
       </div>
 
@@ -228,7 +235,7 @@ export default function MatchTable({ matches, assignments, referees, filters, se
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #1e2235' }}>
-                {['Date', 'Time', 'Category', 'Home', 'Away', 'Venue', 'Referee', 'AR1', 'AR2', 'Status'].map(h => (
+                {['Match ID', 'Phase', 'Category', 'Day', 'Hour', 'Team A', 'Team B', 'Field', 'Referee 1', 'Referee 2', 'Referee 3', 'Status'].map(h => (
                   <th key={h} style={{ padding: '10px 12px', textAlign: 'left', color: '#475569', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -239,28 +246,31 @@ export default function MatchTable({ matches, assignments, referees, filters, se
                 const status = a.status || 'unassigned';
                 const sc = STATUS_COLORS[status] || STATUS_COLORS.unassigned;
                 const isPending = pendingValidation.includes(m.id);
-                const refName = id => referees.find(r => r.id === id)?.name?.split(' ').slice(-1)[0] || '';
+                const refName = id => referees.find(r => r.id === id)?.name || '';
 
                 return (
                   <tr key={m.id} style={{
                     borderBottom: '1px solid #111318',
                     background: isPending ? 'rgba(59,130,246,0.04)' : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
                   }}>
+                    <td style={{ padding: '8px 12px', color: '#64748b', whiteSpace: 'nowrap', fontSize: 11 }}>{m.id}</td>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m.phase || 'groups'}</span>
+                    </td>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 11, color: '#a78bfa', fontWeight: 500 }}>{m.category || m.teamType}</span>
+                    </td>
                     <td style={{ padding: '8px 12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{m.date}</td>
                     <td style={{ padding: '8px 12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{m.time}</td>
-                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: 11, color: '#a78bfa', fontWeight: 500 }}>{m.teamType}</span>
-                      <div style={{ fontSize: 10, color: '#475569' }}>{m.league.replace('Tournament ', '')}</div>
-                    </td>
-                    <td style={{ padding: '8px 12px', color: '#e2e8f0', fontWeight: 500, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.home}</td>
-                    <td style={{ padding: '8px 12px', color: '#94a3b8', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.away}</td>
+                    <td style={{ padding: '8px 12px', color: '#e2e8f0', fontWeight: 500, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.home}</td>
+                    <td style={{ padding: '8px 12px', color: '#94a3b8', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.away}</td>
                     <td style={{ padding: '8px 12px', color: '#64748b', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.venue}</td>
                     <td style={{ padding: '8px 12px', minWidth: 170 }}>
                       <RefSelect
                         value={a.referee}
                         referees={referees}
                         onChange={v => onUpdate(m.id, 'referee', v)}
-                        placeholder="— assign —"
+                        placeholder="— Referee 1 —"
                       />
                     </td>
                     <td style={{ padding: '8px 12px', minWidth: 140 }}>
@@ -268,7 +278,7 @@ export default function MatchTable({ matches, assignments, referees, filters, se
                         value={a.ar1}
                         referees={referees}
                         onChange={v => onUpdate(m.id, 'ar1', v)}
-                        placeholder="AR1"
+                        placeholder="Referee 2"
                       />
                     </td>
                     <td style={{ padding: '8px 12px', minWidth: 140 }}>
@@ -276,7 +286,7 @@ export default function MatchTable({ matches, assignments, referees, filters, se
                         value={a.ar2}
                         referees={referees}
                         onChange={v => onUpdate(m.id, 'ar2', v)}
-                        placeholder="AR2"
+                        placeholder="Referee 3"
                       />
                     </td>
                     <td style={{ padding: '8px 12px' }}>
