@@ -1,10 +1,11 @@
-import { LayoutDashboard, CalendarDays, Users, ClipboardList, Trophy } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Users, ClipboardList, Trophy, MessageSquarePlus } from 'lucide-react';
 import USOfficialsLogo from './USOfficialsLogo';
 
 const ALL_NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin'] },
   { id: 'matches', icon: CalendarDays, label: 'Matches', roles: ['admin'] },
   { id: 'referees', icon: Users, label: 'Referees', roles: ['admin', 'observer'] },
+  { id: 'prompt', icon: MessageSquarePlus, label: 'AI Prompt', roles: ['admin'] },
   { id: 'evaluations', icon: ClipboardList, label: 'Evaluations', roles: ['admin', 'observer'] },
   { id: 'merittable', icon: Trophy, label: 'Merit Table', roles: ['admin', 'observer'] },
 ];

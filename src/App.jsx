@@ -8,6 +8,7 @@ import RefereePanel from './components/RefereePanel';
 import AIStatusBar from './components/AIStatusBar';
 import LoginScreen from './components/LoginScreen';
 import EvaluationForm from './components/EvaluationForm';
+import PromptPanel from './components/PromptPanel';
 import MeritTable from './components/MeritTable';
 import './index.css';
 
@@ -239,6 +240,9 @@ export default function App() {
                   matches={matches}
                   assignments={assignments}
                 />
+              )}
+              {activeView === 'prompt' && role === 'admin' && (
+                <PromptPanel />
               )}
               {activeView === 'evaluations' && (
                 <EvaluationForm
