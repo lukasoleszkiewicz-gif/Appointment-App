@@ -33,7 +33,7 @@ function ByDateRow({ date, matches, assignments }) {
   const approved = matches.filter(m => m.date === date && assignments[m.id]?.status === 'approved').length;
   const pct = count ? Math.round(assigned / count * 100) : 0;
 
-  const dayNames = { '5/22/2026': 'Day 1 – Thu', '5/23/2026': 'Day 2 – Fri', '5/24/2026': 'Day 3 – Sat', '5/25/2026': 'Day 4 – Sun' };
+  const dayNames = { '6/19/2026': 'Day 1 – Fri', '6/20/2026': 'Day 2 – Sat', '6/21/2026': 'Day 3 – Sun', '6/22/2026': 'Day 4 – Mon' };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #1a1d2e' }}>
@@ -56,7 +56,7 @@ function ByDateRow({ date, matches, assignments }) {
 
 export default function Dashboard({ matches, assignments, referees, stats, onRunAI, aiRunning, setActiveView }) {
   const pct = stats.total ? Math.round(stats.assigned / stats.total * 100) : 0;
-  const dates = ['5/22/2026', '5/23/2026', '5/24/2026', '5/25/2026'];
+  const dates = ['6/19/2026', '6/20/2026', '6/21/2026', '6/22/2026'];
 
   const refWorkload = referees.map(r => {
     const count = Object.values(assignments).filter(a =>
@@ -76,16 +76,16 @@ export default function Dashboard({ matches, assignments, referees, stats, onRun
     <div>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9', margin: '0 0 4px' }}>
-          Referee Assignment Dashboard
+          Ibercup Estoril 2026 — Referee Assignment
         </h1>
         <p style={{ color: '#64748b', fontSize: 13 }}>
-          NMDT &amp; IFA Tournament · May 22–25, 2026 · AI-powered assignment engine
+          Ibercup Estoril · June 19–22, 2026 · AI-powered assignment engine
         </p>
       </div>
 
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
-        <StatCard icon={CalendarDays} label="Total Matches" value={stats.total} sub="NMDT + IFA" color="#3b82f6" />
+        <StatCard icon={CalendarDays} label="Total Matches" value={stats.total} sub="Ibercup Estoril" color="#3b82f6" />
         <StatCard icon={TrendingUp} label="Assigned" value={stats.assigned} sub={`${pct}% coverage`} color="#8b5cf6" />
         <StatCard icon={CheckSquare} label="Approved" value={stats.approved} sub="Human validated" color="#34d399" />
         <StatCard icon={AlertCircle} label="Pending Review" value={stats.pending} sub="Awaiting validation" color="#f59e0b" />

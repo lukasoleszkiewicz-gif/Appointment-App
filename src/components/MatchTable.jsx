@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Search, Filter, ChevronDown } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Search, Filter, ChevronDown, Upload } from 'lucide-react';
 
 const STATUS_COLORS = {
   approved: { bg: '#064e3b', text: '#34d399', label: 'Approved' },
@@ -29,13 +29,54 @@ function RefSelect({ value, referees, onChange, placeholder, busy }) {
   );
 }
 
-export default function MatchTable({ matches, assignments, referees, filters, setFilters, onUpdate, pendingValidation }) {
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return null;
+  const header = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  const colMap = {};
+  header.forEach((h, i) => { colMap[h.toLowerCase()] = i; });
+
+  const getCol = (row, ...names) => {
+    for (const name of names) {
+      const idx = colMap[name];
+      if (idx !== undefined && row[idx] !== undefined) {
+        return row[idx].trim().replace(/^"|"$/g, '');
+      }
+    }
+    return '';
+  };
+
+  const parsed = [];
+  for (let i = 1; i < lines.length; i++) {
+    const row = lines[i].split(',');
+    if (row.every(c => !c.trim())) continue;
+    parsed.push({
+      id: i,
+      date: getCol(row, 'date'),
+      time: getCol(row, 'time'),
+      game: i + 200000,
+      league: getCol(row, 'league') || 'Ibercup Estoril',
+      gameExt: i,
+      teamType: getCol(row, 'category', 'teamtype', 'team type', 'type'),
+      length: 70,
+      venue: getCol(row, 'venue'),
+      home: getCol(row, 'home team', 'home'),
+      away: getCol(row, 'away team', 'away'),
+    });
+  }
+  return parsed.length > 0 ? parsed : null;
+}
+
+export default function MatchTable({ matches, assignments, referees, filters, setFilters, onUpdate, pendingValidation, onImportMatches }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
+  const [importError, setImportError] = useState('');
+  const fileInputRef = useRef(null);
   const PER_PAGE = 20;
 
-  const dates = ['all', '5/22/2026', '5/23/2026', '5/24/2026', '5/25/2026'];
-  const leagues = ['all', 'Tournament NMDT', 'Tournament IFA'];
+  // Derive unique dates from matches
+  const uniqueDates = ['all', ...Array.from(new Set(matches.map(m => m.date))).sort()];
+  const uniqueLeagues = ['all', ...Array.from(new Set(matches.map(m => m.league)))];
   const statuses = ['all', 'approved', 'ai-proposed', 'unassigned'];
 
   const filtered = matches.filter(m => {
@@ -55,6 +96,24 @@ export default function MatchTable({ matches, assignments, referees, filters, se
 
   const pages = Math.ceil(filtered.length / PER_PAGE);
   const visible = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImportError('');
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target.result;
+      const parsed = parseCSV(text);
+      if (!parsed) {
+        setImportError('Could not parse CSV. Expected columns: Date, Time, Category, Home Team, Away Team, Venue');
+        return;
+      }
+      onImportMatches(parsed);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   const FilterPill = ({ label, value, options, onChange }) => (
     <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
@@ -84,6 +143,30 @@ export default function MatchTable({ matches, assignments, referees, filters, se
           <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>Match List</h2>
           <p style={{ color: '#64748b', fontSize: 12, margin: '2px 0 0' }}>{filtered.length} matches</p>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {importError && (
+            <span style={{ fontSize: 11, color: '#f87171', maxWidth: 260 }}>{importError}</span>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 8, border: '1px solid #22c55e',
+              background: 'rgba(34,197,94,0.1)', color: '#22c55e',
+              cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            }}
+          >
+            <Upload size={13} />
+            Import Matches
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -100,8 +183,8 @@ export default function MatchTable({ matches, assignments, referees, filters, se
             }}
           />
         </div>
-        <FilterPill label="Dates" value={filters.date} options={dates} onChange={v => setFilters(f => ({ ...f, date: v }))} />
-        <FilterPill label="Leagues" value={filters.league} options={leagues} onChange={v => setFilters(f => ({ ...f, league: v }))} />
+        <FilterPill label="Dates" value={filters.date} options={uniqueDates} onChange={v => setFilters(f => ({ ...f, date: v }))} />
+        <FilterPill label="Leagues" value={filters.league} options={uniqueLeagues} onChange={v => setFilters(f => ({ ...f, league: v }))} />
         <FilterPill label="Status" value={filters.status} options={statuses} onChange={v => setFilters(f => ({ ...f, status: v }))} />
       </div>
 
@@ -129,7 +212,7 @@ export default function MatchTable({ matches, assignments, referees, filters, se
                     borderBottom: '1px solid #111318',
                     background: isPending ? 'rgba(59,130,246,0.04)' : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
                   }}>
-                    <td style={{ padding: '8px 12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{m.date.slice(0, -5)}</td>
+                    <td style={{ padding: '8px 12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{m.date}</td>
                     <td style={{ padding: '8px 12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{m.time}</td>
                     <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
                       <span style={{ fontSize: 11, color: '#a78bfa', fontWeight: 500 }}>{m.teamType}</span>

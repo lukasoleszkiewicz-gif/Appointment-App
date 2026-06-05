@@ -1,7 +1,8 @@
 import { Bot, Loader, CheckCircle, Sparkles } from 'lucide-react';
 
-export default function AIStatusBar({ aiRunning, aiLog, onRunAI, stats }) {
+export default function AIStatusBar({ aiRunning, aiLog, onRunAI, stats, refereeCount }) {
   const lastLog = aiLog[aiLog.length - 1];
+  const refCount = refereeCount || stats.total;
 
   return (
     <div style={{
@@ -40,7 +41,7 @@ export default function AIStatusBar({ aiRunning, aiLog, onRunAI, stats }) {
           </div>
         ) : (
           <span style={{ fontSize: 12, color: '#475569' }}>
-            AI agent ready · {stats.total} matches · 43 referees available
+            AI agent ready · {stats.total} matches · {refCount} Estoril referees available
           </span>
         )}
       </div>
