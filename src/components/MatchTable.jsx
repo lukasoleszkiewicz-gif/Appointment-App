@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Search, ChevronDown, Upload, Download, XCircle } from 'lucide-react';
+import { Search, ChevronDown, Upload, Download, XCircle, ArrowUpDown, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const STATUS_COLORS = {
@@ -111,10 +111,38 @@ function exportExcel(matches, referees, assignments) {
   XLSX.writeFile(wb, 'estoril_matches.xlsx');
 }
 
+const SORT_COLUMNS = [
+  { key: 'date',     label: 'Day' },
+  { key: 'time',     label: 'Hour' },
+  { key: 'venue',    label: 'Field' },
+  { key: 'phase',    label: 'Phase' },
+  { key: 'category', label: 'Category' },
+  { key: 'home',     label: 'Team A' },
+  { key: 'away',     label: 'Team B' },
+  { key: 'id',       label: 'Match ID' },
+];
+
+function applyMultiSort(rows, sortLevels) {
+  if (!sortLevels.length) return rows;
+  return [...rows].sort((a, b) => {
+    for (const { key, dir } of sortLevels) {
+      const av = String(a[key] ?? '').toLowerCase();
+      const bv = String(b[key] ?? '').toLowerCase();
+      // numeric comparison for id / time
+      const an = parseFloat(av), bn = parseFloat(bv);
+      const cmp = !isNaN(an) && !isNaN(bn) ? an - bn : av.localeCompare(bv);
+      if (cmp !== 0) return dir === 'asc' ? cmp : -cmp;
+    }
+    return 0;
+  });
+}
+
 export default function MatchTable({ matches, assignments, referees, filters, setFilters, onUpdate, pendingValidation, onImportMatches, onRejectAll }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [importError, setImportError] = useState('');
+  const [sortLevels, setSortLevels] = useState([{ key: 'date', dir: 'asc' }, { key: 'time', dir: 'asc' }]);
+  const [showSort, setShowSort] = useState(false);
   const fileInputRef = useRef(null);
   const PER_PAGE = 20;
 
@@ -140,8 +168,9 @@ export default function MatchTable({ matches, assignments, referees, filters, se
     return true;
   });
 
-  const pages = Math.ceil(filtered.length / PER_PAGE);
-  const visible = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+  const sorted = applyMultiSort(filtered, sortLevels);
+  const pages = Math.ceil(sorted.length / PER_PAGE);
+  const visible = sorted.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -160,6 +189,14 @@ export default function MatchTable({ matches, assignments, referees, filters, se
     reader.readAsText(file);
     e.target.value = '';
   };
+
+  const addSortLevel = () => {
+    const used = new Set(sortLevels.map(s => s.key));
+    const next = SORT_COLUMNS.find(c => !used.has(c.key));
+    if (next) setSortLevels(prev => [...prev, { key: next.key, dir: 'asc' }]);
+  };
+  const removeSortLevel = (i) => setSortLevels(prev => prev.filter((_, idx) => idx !== i));
+  const updateSortLevel = (i, patch) => setSortLevels(prev => prev.map((s, idx) => idx === i ? { ...s, ...patch } : s));
 
   const FilterPill = ({ label, value, options, onChange }) => (
     <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
@@ -259,7 +296,112 @@ export default function MatchTable({ matches, assignments, referees, filters, se
         <FilterPill label="Phase" value={filters.phase || 'all'} options={uniquePhases} onChange={v => setFilters(f => ({ ...f, phase: v }))} />
         <FilterPill label="Category" value={filters.league} options={uniqueCategories} onChange={v => setFilters(f => ({ ...f, league: v }))} />
         <FilterPill label="Status" value={filters.status} options={statuses} onChange={v => setFilters(f => ({ ...f, status: v }))} />
+
+        {/* Sort toggle button */}
+        <button
+          onClick={() => setShowSort(s => !s)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '6px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
+            border: showSort ? '1px solid #8b5cf6' : '1px solid #1e2235',
+            background: showSort ? 'rgba(139,92,246,0.15)' : '#1a1d2e',
+            color: showSort ? '#a78bfa' : '#94a3b8', fontWeight: 600,
+          }}
+        >
+          <ArrowUpDown size={12} />
+          Sort {sortLevels.length > 0 && <span style={{ background: '#8b5cf6', color: '#fff', borderRadius: 10, fontSize: 10, padding: '0 5px', marginLeft: 2 }}>{sortLevels.length}</span>}
+        </button>
       </div>
+
+      {/* Multi-level sort panel */}
+      {showSort && (
+        <div style={{
+          background: '#13151f', border: '1px solid #1e2235', borderRadius: 10,
+          padding: '14px 16px', marginBottom: 12,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', letterSpacing: 0.5 }}>SORT ORDER</span>
+            {sortLevels.length > 0 && (
+              <button onClick={() => setSortLevels([])} style={{
+                fontSize: 11, color: '#64748b', background: 'none', border: 'none',
+                cursor: 'pointer', textDecoration: 'underline',
+              }}>Clear all</button>
+            )}
+          </div>
+
+          {sortLevels.length === 0 && (
+            <div style={{ fontSize: 12, color: '#475569', marginBottom: 8 }}>No sort applied — showing default order.</div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {sortLevels.map((level, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Level badge */}
+                <div style={{
+                  width: 22, height: 22, borderRadius: 6, background: '#1a1d2e',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 800, color: '#8b5cf6', flexShrink: 0,
+                }}>{String.fromCharCode(65 + i)}</div>
+
+                {/* Column selector */}
+                <div style={{ position: 'relative' }}>
+                  <select
+                    value={level.key}
+                    onChange={e => updateSortLevel(i, { key: e.target.value })}
+                    style={{
+                      background: '#0f1117', border: '1px solid #1e2235', borderRadius: 6,
+                      color: '#e2e8f0', fontSize: 12, padding: '5px 28px 5px 10px',
+                      cursor: 'pointer', appearance: 'none', minWidth: 130,
+                    }}
+                  >
+                    {SORT_COLUMNS.map(c => (
+                      <option key={c.key} value={c.key}
+                        disabled={sortLevels.some((s, idx) => idx !== i && s.key === c.key)}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#475569' }} />
+                </div>
+
+                {/* Asc / Desc toggle */}
+                <button
+                  onClick={() => updateSortLevel(i, { dir: level.dir === 'asc' ? 'desc' : 'asc' })}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '5px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                    border: '1px solid #1e2235', background: '#0f1117', color: '#94a3b8',
+                  }}
+                >
+                  {level.dir === 'asc' ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
+                  {level.dir === 'asc' ? 'A → Z' : 'Z → A'}
+                </button>
+
+                {/* Remove */}
+                <button onClick={() => removeSortLevel(i)} style={{
+                  background: 'none', border: 'none', cursor: 'pointer', color: '#475569', padding: 4,
+                }}>
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Add level */}
+          {sortLevels.length < SORT_COLUMNS.length && (
+            <button
+              onClick={addSortLevel}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5, marginTop: 10,
+                padding: '5px 12px', borderRadius: 6, border: '1px dashed #1e2235',
+                background: 'transparent', color: '#475569', fontSize: 11, cursor: 'pointer',
+              }}
+            >
+              <Plus size={12} /> Add sort level
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Table */}
       <div style={{ background: '#13151f', border: '1px solid #1e2235', borderRadius: 12, overflow: 'hidden' }}>
