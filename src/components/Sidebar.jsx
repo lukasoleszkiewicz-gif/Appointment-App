@@ -1,11 +1,10 @@
-import { LayoutDashboard, CalendarDays, Users, CheckSquare, ClipboardList, Trophy } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Users, ClipboardList, Trophy } from 'lucide-react';
 import USOfficialsLogo from './USOfficialsLogo';
 
 const ALL_NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin'] },
   { id: 'matches', icon: CalendarDays, label: 'Matches', roles: ['admin'] },
   { id: 'referees', icon: Users, label: 'Referees', roles: ['admin', 'observer'] },
-  { id: 'validation', icon: CheckSquare, label: 'Validation', roles: ['admin'] },
   { id: 'evaluations', icon: ClipboardList, label: 'Evaluations', roles: ['admin', 'observer'] },
   { id: 'merittable', icon: Trophy, label: 'Merit Table', roles: ['admin', 'observer'] },
 ];
@@ -33,7 +32,7 @@ export default function Sidebar({ activeView, setActiveView, stats, currentUser 
       <nav style={{ flex: 1, padding: '12px 8px' }}>
         {navItems.map(({ id, icon: Icon, label }) => {
           const isActive = activeView === id;
-          const badge = id === 'validation' && stats.pending > 0 ? stats.pending : null;
+          const badge = null;
           return (
             <button
               key={id}

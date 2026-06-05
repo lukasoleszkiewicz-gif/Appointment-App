@@ -3,7 +3,8 @@ import { Search, ChevronDown, Upload, Download, XCircle, ArrowUpDown, Plus, Tras
 import * as XLSX from 'xlsx';
 
 const STATUS_COLORS = {
-  approved: { bg: '#064e3b', text: '#34d399', label: 'Approved' },
+  approved: { bg: '#064e3b', text: '#34d399', label: 'Validated' },
+  'needs-action': { bg: '#44260a', text: '#fb923c', label: 'Needs Action' },
   'ai-proposed': { bg: '#1e3a5f', text: '#60a5fa', label: 'AI Proposed' },
   manual: { bg: '#3b2f00', text: '#fbbf24', label: 'Manual' },
   unassigned: { bg: '#1f1f1f', text: '#6b7280', label: 'Unassigned' },
@@ -137,7 +138,7 @@ function applyMultiSort(rows, sortLevels) {
   });
 }
 
-export default function MatchTable({ matches, assignments, referees, filters, setFilters, onUpdate, pendingValidation, onImportMatches, onRejectAll }) {
+export default function MatchTable({ matches, assignments, referees, filters, setFilters, onUpdate, pendingValidation, onImportMatches, onRejectAll, onApprove, onReject }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [perPage, setPerPage] = useState(20);
@@ -505,11 +506,49 @@ export default function MatchTable({ matches, assignments, referees, filters, se
                         placeholder="Referee 3"
                       />
                     </td>
-                    <td style={{ padding: '8px 12px' }}>
-                      <span style={{
-                        background: sc.bg, color: sc.text, borderRadius: 6,
-                        padding: '2px 8px', fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap'
-                      }}>{sc.label}</span>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', minWidth: 220 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {/* Status badge / cycle button */}
+                        {a.referee ? (
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button
+                              title="Validate"
+                              onClick={() => onApprove && onApprove(m.id)}
+                              style={{
+                                padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                                cursor: 'pointer', border: '1px solid #22c55e',
+                                background: status === 'approved' ? '#064e3b' : 'rgba(34,197,94,0.08)',
+                                color: status === 'approved' ? '#34d399' : '#22c55e',
+                              }}
+                            >✓ Validate</button>
+                            <button
+                              title="Needs further action"
+                              onClick={() => onUpdate(m.id, 'status', status === 'needs-action' ? 'ai-proposed' : 'needs-action')}
+                              style={{
+                                padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                                cursor: 'pointer', border: '1px solid #f97316',
+                                background: status === 'needs-action' ? '#44260a' : 'rgba(249,115,22,0.08)',
+                                color: status === 'needs-action' ? '#fb923c' : '#f97316',
+                              }}
+                            >⚠ Action</button>
+                            <button
+                              title="Reject"
+                              onClick={() => onReject && onReject(m.id)}
+                              style={{
+                                padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                                cursor: 'pointer', border: '1px solid #ef4444',
+                                background: 'rgba(239,68,68,0.08)',
+                                color: '#f87171',
+                              }}
+                            >✗</button>
+                          </div>
+                        ) : (
+                          <span style={{
+                            background: sc.bg, color: sc.text, borderRadius: 6,
+                            padding: '2px 8px', fontSize: 10, fontWeight: 600,
+                          }}>{sc.label}</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

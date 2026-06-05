@@ -5,7 +5,6 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import MatchTable from './components/MatchTable';
 import RefereePanel from './components/RefereePanel';
-import ValidationQueue from './components/ValidationQueue';
 import AIStatusBar from './components/AIStatusBar';
 import LoginScreen from './components/LoginScreen';
 import EvaluationForm from './components/EvaluationForm';
@@ -98,7 +97,7 @@ export default function App() {
 
     await new Promise(r => setTimeout(r, 500));
     setAiRunning(false);
-    setActiveView('validation');
+    setActiveView('matches');
   }, [assignments, matches]);
 
   const approveMatch = useCallback((matchId) => {
@@ -230,6 +229,8 @@ export default function App() {
                   pendingValidation={pendingValidation}
                   onImportMatches={handleImportMatches}
                   onRejectAll={rejectAll}
+                  onApprove={approveMatch}
+                  onReject={rejectMatch}
                 />
               )}
               {activeView === 'referees' && (
@@ -237,17 +238,6 @@ export default function App() {
                   referees={initialReferees}
                   matches={matches}
                   assignments={assignments}
-                />
-              )}
-              {activeView === 'validation' && role === 'admin' && (
-                <ValidationQueue
-                  matches={matches}
-                  assignments={assignments}
-                  referees={initialReferees}
-                  pending={pendingValidation}
-                  onApprove={approveMatch}
-                  onReject={rejectMatch}
-                  onApproveAll={approveAll}
                 />
               )}
               {activeView === 'evaluations' && (
