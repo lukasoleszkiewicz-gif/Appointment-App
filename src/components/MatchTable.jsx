@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Search, Filter, ChevronDown, Upload } from 'lucide-react';
+import { Search, ChevronDown, Upload, Download } from 'lucide-react';
 
 const STATUS_COLORS = {
   approved: { bg: '#064e3b', text: '#34d399', label: 'Approved' },
@@ -65,6 +65,28 @@ function parseCSV(text) {
     });
   }
   return parsed.length > 0 ? parsed : null;
+}
+
+function exportCSV(matches, referees, assignments) {
+  const refName = id => referees.find(r => r.id === id)?.name || '';
+  const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const header = ['Date', 'Time', 'Category', 'Home Team', 'Away Team', 'Venue', 'Referee', 'AR1', 'AR2', 'Status'];
+  const rows = matches.map(m => {
+    const a = assignments[m.id] || {};
+    return [
+      m.date, m.time, m.teamType, m.home, m.away, m.venue,
+      refName(a.referee), refName(a.ar1), refName(a.ar2),
+      a.status || 'unassigned',
+    ].map(escape).join(',');
+  });
+  const csv = [header.map(escape).join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'estoril_matches.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function MatchTable({ matches, assignments, referees, filters, setFilters, onUpdate, pendingValidation, onImportMatches }) {
@@ -154,6 +176,18 @@ export default function MatchTable({ matches, assignments, referees, filters, se
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
+          <button
+            onClick={() => exportCSV(matches, referees, assignments)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 8, border: '1px solid #3b82f6',
+              background: 'rgba(59,130,246,0.1)', color: '#60a5fa',
+              cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            }}
+          >
+            <Download size={13} />
+            Export CSV
+          </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             style={{
