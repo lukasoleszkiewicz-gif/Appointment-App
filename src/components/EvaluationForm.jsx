@@ -95,7 +95,8 @@ export default function EvaluationForm({ referees, matches, currentUser }) {
   const [evaluations, setEvaluations] = useState(getStoredEvaluations);
   const [submitted, setSubmitted] = useState(false);
 
-  const myEvals = evaluations.filter(e => e.evaluatorId === currentUser.id);
+  const isAdmin = currentUser.role === 'admin';
+  const myEvals = evaluations.filter(e => isAdmin ? true : e.evaluatorId === currentUser.id);
   const evaluatedRefIds = new Set(myEvals.map(e => e.refereeId));
 
   const filtered = referees.filter(r =>
@@ -104,9 +105,11 @@ export default function EvaluationForm({ referees, matches, currentUser }) {
 
   const selectedRef = referees.find(r => r.id === selectedRefId) || null;
 
-  const myEvalsForRef = selectedRefId
-    ? myEvals.filter(e => e.refereeId === selectedRefId).sort((a, b) => new Date(b.date) - new Date(a.date))
+  // Admins see ALL evaluations for the selected ref; observers see only their own
+  const evalsForRef = selectedRefId
+    ? evaluations.filter(e => e.refereeId === selectedRefId).sort((a, b) => new Date(b.date) - new Date(a.date))
     : [];
+  const myEvalsForRef = isAdmin ? evalsForRef : evalsForRef.filter(e => e.evaluatorId === currentUser.id);
 
   const handleScoreChange = (key, value) => {
     setScores(prev => ({ ...prev, [key]: value }));
@@ -136,6 +139,13 @@ export default function EvaluationForm({ referees, matches, currentUser }) {
     setScores({ ...DEFAULT_SCORES });
     setNotes('');
     setMatchId('');
+  };
+
+  const deleteEvaluation = (evalId) => {
+    if (!window.confirm('Delete this evaluation? This cannot be undone.')) return;
+    const updated = evaluations.filter(e => e.id !== evalId);
+    localStorage.setItem('estoril_evaluations', JSON.stringify(updated));
+    setEvaluations(updated);
   };
 
   const inputStyle = {
@@ -317,7 +327,7 @@ export default function EvaluationForm({ referees, matches, currentUser }) {
             {myEvalsForRef.length > 0 && (
               <div style={{ background: '#13151f', border: '1px solid #1e2235', borderRadius: 12, padding: '16px 20px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9', marginBottom: 12 }}>
-                  Your Previous Evaluations ({myEvalsForRef.length})
+                  {isAdmin ? 'All Evaluations' : 'Your Previous Evaluations'} ({myEvalsForRef.length})
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {myEvalsForRef.map(ev => {
@@ -335,6 +345,11 @@ export default function EvaluationForm({ referees, matches, currentUser }) {
                           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>
                             {match ? `${match.home} vs ${match.away}` : 'General Evaluation'}
                           </div>
+                          {isAdmin && (
+                            <div style={{ fontSize: 10, color: '#8b5cf6', marginBottom: 2 }}>
+                              by {ev.evaluatorName}
+                            </div>
+                          )}
                           <div style={{ fontSize: 10, color: '#475569' }}>
                             {new Date(ev.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                           </div>
@@ -345,6 +360,17 @@ export default function EvaluationForm({ referees, matches, currentUser }) {
                           <div>GM: {ev.scores.gameManagement.toFixed(1)}</div>
                           <div>DM: {ev.scores.decisionMaking.toFixed(1)}</div>
                         </div>
+                        {isAdmin && (
+                          <button
+                            onClick={() => deleteEvaluation(ev.id)}
+                            title="Delete evaluation"
+                            style={{
+                              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                              borderRadius: 6, padding: '5px 8px', cursor: 'pointer',
+                              color: '#f87171', fontSize: 11, fontWeight: 700, flexShrink: 0,
+                            }}
+                          >✕</button>
+                        )}
                       </div>
                     );
                   })}
