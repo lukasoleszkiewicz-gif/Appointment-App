@@ -189,7 +189,12 @@ export default function EvaluationForm({ referees, matches, currentUser }) {
                 <span style={{ fontSize: 18 }}>{COUNTRY_FLAGS[r.country] || '🏳️'}</span>
                 <div style={{ flex: 1, overflow: 'hidden' }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: isSelected ? '#f1f5f9' : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
-                  <div style={{ fontSize: 10, color: '#475569' }}>{getBadgeLevel(r.badge)}</div>
+                  <div style={{ fontSize: 10, color: '#475569', display: 'flex', gap: 6 }}>
+                    <span>{getBadgeLevel(r.badge)}</span>
+                    <span>·</span>
+                    <span>{r.country}</span>
+                    {r.age && <><span>·</span><span>Age {r.age}</span></>}
+                  </div>
                 </div>
                 {hasEval && <CheckCircle2 size={14} color="#34d399" />}
               </button>
@@ -215,7 +220,10 @@ export default function EvaluationForm({ referees, matches, currentUser }) {
               <span style={{ fontSize: 28 }}>{COUNTRY_FLAGS[selectedRef.country] || '🏳️'}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 16, fontWeight: 800, color: '#f1f5f9' }}>{selectedRef.name}</div>
-                <div style={{ fontSize: 12, color: '#64748b' }}>{selectedRef.country}</div>
+                <div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span>{selectedRef.country}</span>
+                  {selectedRef.age && <><span style={{ color: '#1e2235' }}>·</span><span>Age {selectedRef.age}</span></>}
+                </div>
               </div>
               <span style={{
                 background: `${BADGE_COLORS[selectedRef.badge]}22`, color: BADGE_COLORS[selectedRef.badge],
